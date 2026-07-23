@@ -1,0 +1,22 @@
+# Gemini Agent / Antigravity IDE folder
+.gemini/
+.agents/
+scratch/
+walkthrough.md
+task.md
+implementation_plan.md
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Temp screenshots and videos
+*.webp
+*.png
+*.mp4
+
+# Python temp files
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tide 潮汐｜台股板塊輪動・法人資金流向</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body class="dark-theme">
+    <!-- 背景光效飾環 -->
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
+    <header class="app-header">
+        <div class="header-logo">
+            <div class="logo-icon"><i class="fa-solid fa-water"></i></div>
+            <div class="logo-text">
+                <h1>Tide <span>潮汐</span></h1>
+                <p>台股板塊輪動 ・ 法人資金流向</p>
+            </div>
+        </div>
+        <nav class="header-nav">
+            <button class="nav-btn active" data-target="bubble-view"><i class="fa-solid fa-chart-bubble"></i>板塊資金輪動</button>
+            <button class="nav-btn" data-target="ranking-view"><i class="fa-solid fa-list-ol"></i>籌碼排行榜</button>
+            <button class="nav-btn" data-target="glossary-view"><i class="fa-solid fa-book"></i>籌碼名詞百科</button>
+        </nav>
+        <div class="header-status">
+            <span class="update-time"><i class="fa-regular fa-clock"></i> 資料更新：<span id="latest-date-label">-----</span></span>
+            <button id="theme-toggle" class="theme-btn"><i class="fa-solid fa-moon"></i></button>
+        </div>
+    </header>
+
+    <main class="app-main">
+        <!-- 視窗 1：板塊資金輪動泡泡圖與大盤狀態 -->
+        <section id="bubble-view" class="view-section active">
+            <div class="grid-layout">
+                <!-- 左側側邊欄：情緒計、今日重點與分類 -->
+                <aside class="sidebar-panel">
+                    <!-- 市場情緒卡 -->
+                    <div class="glass-card emotion-card">
+                        <h3 class="card-title"><i class="fa-solid fa-gauge-high"></i>今日情緒指標</h3>
+                        <div class="gauge-container">
+                            <div class="gauge-chart">
+                                <div class="gauge-body">
+                                    <div class="gauge-fill" id="gauge-fill"></div>
+                                    <div class="gauge-cover"></div>
+                                </div>
+                                <div class="gauge-needle" id="gauge-needle"></div>
+                            </div>
+                            <div class="gauge-value">
+                                <span class="num" id="emotion-score-num">--</span>
+                                <span class="label" id="emotion-text-label">加載中</span>
+                            </div>
+                        </div>
+                        <div class="gauge-scale">
+                            <span>極度樂觀 (0)</span>
+                            <span>中性</span>
+                            <span>極度恐慌 (100)</span>
+                        </div>
+                    </div>
+
+                    <!-- 今日重點卡 -->
+                    <div class="glass-card highlights-card">
+                        <h3 class="card-title"><i class="fa-solid fa-bullhorn"></i>今日盤面重點</h3>
+                        <ul class="highlights-list" id="highlights-list">
+                            <li><i class="fa-solid fa-circle-notch fa-spin"></i> 正在載入市場指標...</li>
+                        </ul>
+                    </div>
+
+                    <!-- 板塊資金分類卡 -->
+                    <div class="glass-card sector-status-card">
+                        <h3 class="card-title"><i class="fa-solid fa-layer-group"></i>板塊資金狀態</h3>
+                        <div class="status-groups">
+                            <div class="status-group rising">
+                                <div class="group-header"><span class="dot"></span>漲潮 (加速流入)</div>
+                                <div class="group-tags" id="sec-tags-rising">--</div>
+                            </div>
+                            <div class="status-group rotating">
+                                <div class="group-header"><span class="dot"></span>輪動 (流入放緩)</div>
+                                <div class="group-tags" id="sec-tags-rotating">--</div>
+                            </div>
+                            <div class="status-group watching">
+                                <div class="group-header"><span class="dot"></span>觀望 (流出放緩)</div>
+                                <div class="group-tags" id="sec-tags-watching">--</div>
+                            </div>
+                            <div class="status-group falling">
+                                <div class="group-header"><span class="dot"></span>退潮 (加速流出)</div>
+                                <div class="group-tags" id="sec-tags-falling">--</div>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- 中間主展區：泡泡圖與播放控制器 -->
+                <article class="main-content-panel">
+                    <div class="glass-card bubble-chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title-area">
+                                <h2>三大法人資金流向泡泡圖</h2>
+                                <p>泡泡大小代表近 20 日累計買賣超金額，位置代表資金流入強度與力道變化</p>
+                            </div>
+                            <!-- 三大法人分項切換 -->
+                            <div class="segment-control" id="broker-filter">
+                                <button class="segment-btn active" data-value="total">三大法人合計</button>
+                                <button class="segment-btn" data-value="foreign">外資</button>
+                                <button class="segment-btn" data-value="trust">投信</button>
+                                <button class="segment-btn" data-value="dealer">自營自行</button>
+                            </div>
+                        </div>
+
+                        <!-- 泡泡圖 Chart 容器 -->
+                        <div class="bubble-chart-wrapper">
+                            <canvas id="sectorBubbleChart"></canvas>
+                            <!-- 象限浮水印文字 -->
+                            <div class="quadrant-label quadrant-tr">漲潮區 (加速流入)</div>
+                            <div class="quadrant-label quadrant-br">輪動區 (流入放緩)</div>
+                            <div class="quadrant-label quadrant-bl">觀望區 (流出放緩)</div>
+                            <div class="quadrant-label quadrant-tl">退潮區 (加速流出)</div>
+                        </div>
+
+                        <!-- 資金軌跡回放控制條 -->
+                        <div class="timeline-controller">
+                            <div class="play-controls">
+                                <button id="play-btn" class="ctrl-btn" title="播放"><i class="fa-solid fa-play"></i></button>
+                                <span class="current-playback-date" id="playback-date-label">-----</span>
+                            </div>
+                            <div class="timeline-slider-wrapper">
+                                <input type="range" id="timeline-slider" min="0" max="19" value="19" class="timeline-slider">
+                                <div class="timeline-ticks" id="timeline-ticks">
+                                    <!-- 動態生成日期標籤 -->
+                                </div>
+                            </div>
+                            <div class="play-speed-control">
+                                <button class="speed-btn active" data-speed="1000">1x</button>
+                                <button class="speed-btn" data-speed="500">2x</button>
+                                <div class="trace-toggle-wrapper">
+                                    <label class="switch">
+                                        <input type="checkbox" id="trace-toggle" checked>
+                                        <span class="slider round"></span>
+                                    </label>
+                                    <span class="trace-label">顯示軌跡</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- 視窗 2：籌碼排行榜 -->
+        <section id="ranking-view" class="view-section">
+            <div class="glass-card ranking-card">
+                <div class="ranking-header">
+                    <div class="ranking-tabs" id="ranking-tabs">
+                        <button class="rank-tab-btn active" data-rank="buy_total"><i class="fa-solid fa-arrow-trend-up"></i> 三大法人買超王</button>
+                        <button class="rank-tab-btn" data-rank="sell_total"><i class="fa-solid fa-arrow-trend-down"></i> 三大法人賣超王</button>
+                        <button class="rank-tab-btn" data-rank="foreign_streak"><i class="fa-solid fa-plane-arrival"></i> 外資連買</button>
+                        <button class="rank-tab-btn" data-rank="trust_streak"><i class="fa-solid fa-vault"></i> 投信連買</button>
+                        <button class="rank-tab-btn" data-rank="heavy_volume"><i class="fa-solid fa-bolt"></i> 異常放量個股</button>
+                        <button class="rank-tab-btn" data-rank="buy_on_dip"><i class="fa-solid fa-anchor"></i> 越跌越買前瞻股</button>
+                    </div>
+                    <div class="ranking-search">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="ranking-search-input" placeholder="搜尋股票代號或名稱...">
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="ranking-table" id="ranking-table">
+                        <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>股票代號/名稱</th>
+                                <th>最新收盤價</th>
+                                <th>漲跌幅</th>
+                                <th>今日買賣超金額 (百萬)</th>
+                                <th>20日均量比 (今日量/均量)</th>
+                                <th>資金停留天數</th>
+                                <th>外資持股比率</th>
+                                <th>大戶持股比率</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ranking-table-body">
+                            <!-- 動態填充 -->
+                            <tr>
+                                <td colspan="10" class="loading-td"><i class="fa-solid fa-circle-notch fa-spin"></i> 載入排行榜中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 視窗 3：名詞百科 -->
+        <section id="glossary-view" class="view-section">
+            <div class="glass-card glossary-card">
+                <div class="glossary-title">
+                    <h2><i class="fa-solid fa-book-open"></i> 台股籌碼名詞白話小百科</h2>
+                    <p>3 分鐘看懂籌碼分析名詞，掌握法人資金邏輯</p>
+                </div>
+                <div class="glossary-grid" id="glossary-container">
+                    <!-- 將由 JS 動態生成白話名詞解釋，或是預先寫在 HTML 裡 -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 板塊成分股與個股籌碼詳細資訊 Drawer / Modal -->
+    <div id="details-modal" class="modal-backdrop">
+        <div class="modal-content glass-card">
+            <button class="modal-close" id="modal-close-btn">&times;</button>
+            
+            <div class="modal-body" id="modal-body-content">
+                <!-- 動態注入內容，分為板塊詳情與個股詳情 -->
+            </div>
+        </div>
+    </div>
+
+    <footer class="app-footer">
+        <p>&copy; 2026 Tide 潮汐台股資金分析工具。數據來源為公開資料彙整，僅供研究參考，不構成投資建議。</p>
+    </footer>
+
+    <!-- 前端邏輯 JS -->
+    <script src="app.js" type="module"></script>
+</body>
+</html>
