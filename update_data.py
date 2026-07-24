@@ -9,8 +9,9 @@ import yfinance as yf
 # 確保輸出目錄存在
 os.makedirs("data", exist_ok=True)
 
-# 載入從網頁 JS 中提取出的 718 檔個股名稱對照表
-EXTRACTED_NAMES_PATH = "C:/Users/poipi/.gemini/antigravity-ide/brain/6e21f5f5-53b5-49a1-8af1-8356327245cb/scratch/extracted_names.json"
+# 載入從網頁 JS 中提取出的個股名稱對照表
+script_dir = os.path.dirname(os.path.abspath(__file__))
+EXTRACTED_NAMES_PATH = os.path.join(script_dir, "stock_names.json")
 if os.path.exists(EXTRACTED_NAMES_PATH):
     with open(EXTRACTED_NAMES_PATH, "r", encoding="utf-8") as f:
         STOCK_NAMES = json.load(f)
