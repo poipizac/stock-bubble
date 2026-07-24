@@ -51,13 +51,16 @@ def main():
         return
         
     print("下載大盤 ^TWII 交易日曆...")
-    twii_df = yf.download("^TWII", start="2026-06-01", end="2026-07-25")
+    today = datetime.date.today()
+    end_date_str = (today + datetime.timedelta(days=2)).strftime("%Y-%m-%d")
+    twii_df = yf.download("^TWII", start="2026-06-01", end=end_date_str)
     if twii_df.empty:
         print("無法獲取大盤日曆")
         return
         
     all_trading_dates = twii_df.index.strftime("%Y-%m-%d").tolist()
-    all_trading_dates = [d for d in all_trading_dates if d <= "2026-07-23"]
+    today_str = today.strftime("%Y-%m-%d")
+    all_trading_dates = [d for d in all_trading_dates if d <= today_str]
     
     valid_dates = all_trading_dates[-20:]
     latest_date = valid_dates[-1]
