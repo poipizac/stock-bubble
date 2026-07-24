@@ -10,6 +10,7 @@ let rankingsData = null;
 
 let dates = [];
 let currentDateIndex = 0;
+let modalActiveDate = null;
 let isPlaying = false;
 let playInterval = null;
 let playbackSpeed = 1000; // 毫秒
@@ -774,9 +775,15 @@ function showStockDetails(ticker, isDateSwitch = false) {
         activeTab = "traj";
     }
 
+    // 初始化/設定 Modal 的活動日期源頭
+    if (!isDateSwitch) {
+        modalActiveDate = dates[currentDateIndex];
+    }
+
     // 依據當前選定的歷史日期載入指標數值
-    const currentDate = dates[currentDateIndex];
+    const currentDate = modalActiveDate || dates[currentDateIndex];
     const info = stock.history.find(h => h.date === currentDate) || stock.info;
+    const currentHistIndex = stock.history.findIndex(h => h.date === currentDate);
     
     const changeSign = info.change_pct > 0 ? "+" : "";
     const changeClass = info.change_pct > 0 ? "txt-up" : (info.change_pct < 0 ? "txt-down" : "txt-neutral");
@@ -810,7 +817,7 @@ function showStockDetails(ticker, isDateSwitch = false) {
         const prevDateBtn = container.querySelector("#btn-modal-prev-date");
         const nextDateBtn = container.querySelector("#btn-modal-next-date");
         if (prevDateBtn) {
-            if (currentDateIndex === 0) {
+            if (currentHistIndex <= 0) {
                 prevDateBtn.style.opacity = "0.3";
                 prevDateBtn.style.cursor = "not-allowed";
             } else {
@@ -819,7 +826,7 @@ function showStockDetails(ticker, isDateSwitch = false) {
             }
         }
         if (nextDateBtn) {
-            if (currentDateIndex === dates.length - 1) {
+            if (currentHistIndex >= stock.history.length - 1) {
                 nextDateBtn.style.opacity = "0.3";
                 nextDateBtn.style.cursor = "not-allowed";
             } else {
@@ -978,47 +985,69 @@ function showStockDetails(ticker, isDateSwitch = false) {
     const prevDateBtn = container.querySelector("#btn-modal-prev-date");
     const nextDateBtn = container.querySelector("#btn-modal-next-date");
 
-    if (currentDateIndex === 0) {
+    // 設定初始按鈕禁用樣式
+    if (currentHistIndex <= 0) {
         prevDateBtn.style.opacity = "0.3";
         prevDateBtn.style.cursor = "not-allowed";
-    } else {
-        prevDateBtn.addEventListener("click", () => {
-            if (currentDateIndex <= 0) return;
-            currentDateIndex--;
-            // 同步更新首頁 Timeline Slider
-            const slider = document.getElementById("timeline-slider");
-            if (slider) {
-                slider.value = currentDateIndex;
-            }
-            const dateLabel = document.getElementById("playback-date-label");
-            if (dateLabel) {
-                dateLabel.textContent = dates[currentDateIndex];
-            }
-            updateDashboard(dates[currentDateIndex]);
-            showStockDetails(ticker, true);
-        });
     }
-
-    if (currentDateIndex === dates.length - 1) {
+    if (currentHistIndex >= stock.history.length - 1) {
         nextDateBtn.style.opacity = "0.3";
         nextDateBtn.style.cursor = "not-allowed";
-    } else {
-        nextDateBtn.addEventListener("click", () => {
-            if (currentDateIndex >= dates.length - 1) return;
-            currentDateIndex++;
-            // 同步更新首頁 Timeline Slider
-            const slider = document.getElementById("timeline-slider");
-            if (slider) {
-                slider.value = currentDateIndex;
-            }
-            const dateLabel = document.getElementById("playback-date-label");
-            if (dateLabel) {
-                dateLabel.textContent = dates[currentDateIndex];
-            }
-            updateDashboard(dates[currentDateIndex]);
-            showStockDetails(ticker, true);
-        });
     }
+
+    prevDateBtn.addEventListener("click", () => {
+        const hist = stock.history;
+        const index = hist.findIndex(h => h.date === modalActiveDate);
+        if (index <= 0) return;
+
+        const newDate = hist[index - 1].date;
+        modalActiveDate = newDate;
+
+        const sliderIndex = dates.indexOf(newDate);
+        if (sliderIndex !== -1) {
+            currentDateIndex = sliderIndex;
+            const slider = document.getElementById("timeline-slider");
+            if (slider) slider.value = currentDateIndex;
+            const dateLabel = document.getElementById("playback-date-label");
+            if (dateLabel) dateLabel.textContent = newDate;
+            updateDashboard(newDate);
+        } else {
+            // 超出首頁 10 天範圍時，將首頁 Slider 鎖定在最左邊 (Index 0)
+            const slider = document.getElementById("timeline-slider");
+            if (slider) slider.value = 0;
+            const dateLabel = document.getElementById("playback-date-label");
+            if (dateLabel) dateLabel.textContent = dates[0];
+            updateDashboard(dates[0]);
+        }
+        showStockDetails(ticker, true);
+    });
+
+    nextDateBtn.addEventListener("click", () => {
+        const hist = stock.history;
+        const index = hist.findIndex(h => h.date === modalActiveDate);
+        if (index === -1 || index >= hist.length - 1) return;
+
+        const newDate = hist[index + 1].date;
+        modalActiveDate = newDate;
+
+        const sliderIndex = dates.indexOf(newDate);
+        if (sliderIndex !== -1) {
+            currentDateIndex = sliderIndex;
+            const slider = document.getElementById("timeline-slider");
+            if (slider) slider.value = currentDateIndex;
+            const dateLabel = document.getElementById("playback-date-label");
+            if (dateLabel) dateLabel.textContent = newDate;
+            updateDashboard(newDate);
+        } else {
+            // 超出首頁 10 天範圍時，將首頁 Slider 鎖定在最左邊 (Index 0)
+            const slider = document.getElementById("timeline-slider");
+            if (slider) slider.value = 0;
+            const dateLabel = document.getElementById("playback-date-label");
+            if (dateLabel) dateLabel.textContent = dates[0];
+            updateDashboard(dates[0]);
+        }
+        showStockDetails(ticker, true);
+    });
 
     modal.style.display = "flex";
     
@@ -1132,7 +1161,7 @@ function renderStockTrajectoryChart(stock) {
     const hist = stock.history; // 取最近 20 天繪製軌跡
     
     // 找出當前歷史日期對應的軌跡點索引，藉此動態移動紅圈位置
-    const currentDate = dates[currentDateIndex];
+    const currentDate = modalActiveDate || dates[currentDateIndex];
     const currentHistIndex = hist.findIndex(h => h.date === currentDate);
     const highlightIndex = currentHistIndex !== -1 ? currentHistIndex : hist.length - 1;
 
