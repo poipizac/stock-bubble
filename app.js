@@ -1227,13 +1227,19 @@ function renderStockTrajectoryChart(stock) {
                 x: {
                     type: "linear",
                     title: { display: true, text: "資金集中度 % (買超佔成交額比)", color: "rgba(255, 255, 255, 0.85)", font: { size: 10 } },
-                    grid: { color: "rgba(255,255,255,0.03)" },
+                    grid: {
+                        color: (context) => (context.tick && context.tick.value === 0) ? "rgba(255, 255, 255, 0.45)" : "rgba(255, 255, 255, 0.04)",
+                        lineWidth: (context) => (context.tick && context.tick.value === 0) ? 1.8 : 0.8
+                    },
                     ticks: { color: "rgba(255, 255, 255, 0.7)", font: { size: 9 } }
                 },
                 y: {
                     type: "linear",
                     title: { display: true, text: "資金停留天數 (正值連買，負值連賣)", color: "rgba(255, 255, 255, 0.85)", font: { size: 10 } },
-                    grid: { color: "rgba(255,255,255,0.03)" },
+                    grid: {
+                        color: (context) => (context.tick && context.tick.value === 0) ? "rgba(255, 255, 255, 0.45)" : "rgba(255, 255, 255, 0.04)",
+                        lineWidth: (context) => (context.tick && context.tick.value === 0) ? 1.8 : 0.8
+                    },
                     ticks: { color: "rgba(255, 255, 255, 0.7)", font: { size: 9 } }
                 }
             },

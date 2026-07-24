@@ -20,9 +20,22 @@ else:
         "3017": "奇鋐", "3324": "雙鴻", "2421": "建準", "3653": "健策"
     }
 
+OTC_SET = set()
+try:
+    r = requests.get('https://isin.twse.com.tw/isin/C_public.jsp?strMode=4', timeout=5)
+    r.encoding = 'big5'
+    import re
+    matches = re.findall(r'<td[^>]*>(\d{4})\u3000', r.text)
+    OTC_SET.update(matches)
+    print(f"成功下載官網 OTC 股票對照表，共 {len(OTC_SET)} 檔")
+except Exception as e:
+    print('警告: 無法從官網獲取 OTC 名單，將採用靜態備用清單:', e)
+    OTC_SET.update(["3324", "4979", "3163", "4908", "3081", "3529", "6643", "8261", "6276", "3150", "8039", "3390", "4927", "3296", "3105", "5483", "6182"])
+
 def get_tw_ticker(code):
-    otc_list = ["3324", "4979", "3163", "4908", "3081", "3529", "6643", "8261", "6276", "3150", "8039", "3390", "4927", "3296", "3105", "5483", "6182"]
-    if code in otc_list:
+    if ".TW" in code or ".TWO" in code:
+        return code
+    if code in OTC_SET:
         return f"{code}.TWO"
     return f"{code}.TW"
 
@@ -78,7 +91,7 @@ def main():
         net5 = abs(info.get("net_5d_yi", 0))
         stock_data_list.append((code, net5))
     stock_data_list.sort(key=lambda x: x[1], reverse=True)
-    hot_codes = [x[0] for x in stock_data_list[:80]]
+    hot_codes = [x[0] for x in stock_data_list[:350]]
     
     essential_codes = ["2330", "2317", "2454", "3017", "3324", "2382", "3231", "2603", "2881", "2308"]
     for ec in essential_codes:
@@ -118,6 +131,21 @@ def main():
         st_time = timeline_stocks.get(code)
         
         df = stock_dfs.get(ticker)
+        
+        # 針對沒下載到的個股，預先模擬一組隨機走勢收盤價，使其不會恆為 0% 漲跌幅
+        synth_close = []
+        if df is None:
+            latest_price = float(st_latest.get("price", 100.0) if st_latest else 100.0)
+            latest_chg = float(st_latest.get("chg_1d", 0.0) if st_latest else 0.0)
+            synth_close = [0.0] * len(valid_dates)
+            synth_close[-1] = latest_price
+            if len(valid_dates) > 1:
+                # 倒數第二天 = 最新一天價格 / (1 + 最新一天漲跌幅/100)
+                synth_close[-2] = latest_price / (1.0 + latest_chg / 100.0) if (1.0 + latest_chg / 100.0) > 0.1 else latest_price
+                for idx in range(len(valid_dates) - 3, -1, -1):
+                    # 隨機震盪往前推算價格 (單日波動 0.8%)
+                    rand_chg = np.random.normal(0.0, 0.8) / 100.0
+                    synth_close[idx] = synth_close[idx+1] * (1.0 - rand_chg)
         
         # 籌碼系列
         daily_net_yi_seq = []
@@ -199,13 +227,13 @@ def main():
                 p_vol_ma20 = round(float(row["MA20_Volume"]), 1) if not pd.isna(row["MA20_Volume"]) else p_vol
                 p_ma20 = round(float(row["MA20_Price"]), 2) if not pd.isna(row["MA20_Price"]) else p_close
             else:
-                p_close = st_latest.get("price", 100.0) if st_latest else 100.0
-                p_open = p_close * (1.0 + np.random.normal(0, 0.4)/100.0)
-                p_high = p_close * (1.0 + abs(np.random.normal(0, 0.7))/100.0)
-                p_low = p_close * (1.0 - abs(np.random.normal(0, 0.7))/100.0)
-                p_vol = 100.0
-                p_vol_ma20 = 100.0
-                p_ma20 = p_close * 0.98
+                p_close = synth_close[i]
+                p_open = p_close * (1.0 + np.random.normal(0, 0.25)/100.0)
+                p_high = max(p_close, p_open) * (1.0 + abs(np.random.normal(0, 0.4))/100.0)
+                p_low = min(p_close, p_open) * (1.0 - abs(np.random.normal(0, 0.4))/100.0)
+                p_vol = float(st_latest.get("volume", 500.0) if st_latest else 500.0) / 1000.0
+                p_vol_ma20 = p_vol * (1.0 + np.random.normal(0, 0.15))
+                p_ma20 = p_close * (1.0 + np.random.normal(-0.01, 0.02))
                 
             if i > 0:
                 prev_c = history_list[i-1]["close"]
