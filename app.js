@@ -485,8 +485,8 @@ function updateSectorStatusTags(date) {
                     <span class="tag-action-icon" title="查看成分股"><i class="fa-solid fa-arrow-trend-up"></i></span>
                 `;
                 
-                // 點擊文字切換過濾狀態
-                tag.querySelector(".tag-name").addEventListener("click", (e) => {
+                // 點擊整個標籤切換過濾狀態
+                tag.addEventListener("click", (e) => {
                     e.stopPropagation();
                     if (selectedSectorFilter === name) {
                         selectedSectorFilter = null; // 取消過濾
@@ -500,7 +500,7 @@ function updateSectorStatusTags(date) {
                 
                 // 點擊小圖示打開板塊詳情
                 tag.querySelector(".tag-action-icon").addEventListener("click", (e) => {
-                    e.stopPropagation();
+                    e.stopPropagation(); // 阻止點擊事件冒泡到父層標籤的過濾切換
                     showSectorDetails(name);
                 });
                 
@@ -532,22 +532,20 @@ function initBubbleChart() {
 
                 meta.data.forEach((element, index) => {
                     const dataPoint = dataset.data[index];
-                    const label = dataPoint.label || "";
-                    
+                    const label = dataPoint ? (dataPoint.label || "") : "";
+
+                    // 如果有啟用過濾，非選取板塊文字完全不繪製，避免多重疊加造成字體模糊
+                    if (selectedSectorFilter && label !== selectedSectorFilter) return;
+
                     const { x, y } = element.tooltipPosition();
                     
                     // 設定文字樣式
-                    if (selectedSectorFilter && label !== selectedSectorFilter) {
-                        ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
-                        ctx.shadowColor = "transparent";
-                    } else {
-                        ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
-                        ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
-                    }
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
                     ctx.font = "bold 11px 'Noto Sans TC', sans-serif";
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle";
                     
+                    ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
                     ctx.shadowBlur = 4;
                     ctx.shadowOffsetX = 1;
                     ctx.shadowOffsetY = 1;
