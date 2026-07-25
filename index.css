@@ -500,12 +500,59 @@ body {
     border: 1px solid var(--glass-border);
     cursor: pointer;
     transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
 }
 
 .sec-tag:hover {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.15);
     transform: translateY(-1px);
+}
+
+.tag-name {
+    display: inline-block;
+}
+
+.tag-action-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-size: 0.65rem;
+    color: var(--text-tertiary);
+    border-radius: 3px;
+    transition: var(--transition);
+}
+
+.tag-action-icon:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* 選取/啟動過濾狀態 */
+.sec-tag.active {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+    color: white;
+}
+
+.sec-tag.active .tag-action-icon {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.sec-tag.active .tag-action-icon:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* 當有任一板塊被過濾選取時，暗化其他未選取的板塊標籤 */
+.status-groups:has(.sec-tag.active) .sec-tag:not(.active) {
+    opacity: 0.45;
 }
 
 /* ==========================================================================

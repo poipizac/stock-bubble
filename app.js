@@ -11,6 +11,7 @@ let rankingsData = null;
 
 let pendingModalTicker = null;
 let pendingSectorName = null;
+let selectedSectorFilter = null; // 當前選定過濾的單一板塊名稱
 
 let dates = [];
 let currentDateIndex = 0;
@@ -476,9 +477,33 @@ function updateSectorStatusTags(date) {
         } else {
             list.forEach(name => {
                 const tag = document.createElement("span");
-                tag.className = "sec-tag";
-                tag.innerText = name;
-                tag.addEventListener("click", () => showSectorDetails(name));
+                const isSelected = (selectedSectorFilter === name);
+                tag.className = `sec-tag${isSelected ? ' active' : ''}`;
+                
+                tag.innerHTML = `
+                    <span class="tag-name">${name}</span>
+                    <span class="tag-action-icon" title="查看成分股"><i class="fa-solid fa-arrow-trend-up"></i></span>
+                `;
+                
+                // 點擊文字切換過濾狀態
+                tag.querySelector(".tag-name").addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    if (selectedSectorFilter === name) {
+                        selectedSectorFilter = null; // 取消過濾
+                    } else {
+                        selectedSectorFilter = name;  // 啟用過濾
+                    }
+                    // 重新更新板塊標籤狀態與泡泡圖
+                    updateSectorStatusTags(dates[currentDateIndex]);
+                    updateChartData();
+                });
+                
+                // 點擊小圖示打開板塊詳情
+                tag.querySelector(".tag-action-icon").addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    showSectorDetails(name);
+                });
+                
                 container.appendChild(tag);
             });
         }
@@ -512,13 +537,17 @@ function initBubbleChart() {
                     const { x, y } = element.tooltipPosition();
                     
                     // 設定文字樣式
-                    ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+                    if (selectedSectorFilter && label !== selectedSectorFilter) {
+                        ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
+                        ctx.shadowColor = "transparent";
+                    } else {
+                        ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+                        ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+                    }
                     ctx.font = "bold 11px 'Noto Sans TC', sans-serif";
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle";
                     
-                    // 加陰影以防背景泡泡顏色影響辨識
-                    ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
                     ctx.shadowBlur = 4;
                     ctx.shadowOffsetX = 1;
                     ctx.shadowOffsetY = 1;
@@ -599,6 +628,13 @@ function initBubbleChart() {
                     
                     const sectorName = dataset.data[index].label;
                     showSectorDetails(sectorName);
+                } else {
+                    // 點擊空白處，清除選定過濾板塊
+                    if (selectedSectorFilter) {
+                        selectedSectorFilter = null;
+                        updateSectorStatusTags(dates[currentDateIndex]);
+                        updateChartData();
+                    }
                 }
             }
         },
@@ -635,6 +671,9 @@ function updateChartData() {
 
         // 為每個板塊繪製一條軌跡線
         Object.keys(sectorsData.sector_mapping).forEach(secName => {
+            // 如果選定了單一板塊，只繪製該選定板塊的軌跡線以保持背景清爽
+            if (selectedSectorFilter && secName !== selectedSectorFilter) return;
+            
             const points = [];
             let lastStatus = "觀望";
             
@@ -695,8 +734,14 @@ function updateChartData() {
         // 動態使用當前象限顏色
         const status = brokerVal.status || "觀望";
         const themeColor = STATUS_COLORS[status] || "#52637a";
-        mainBubbleColors.push(`${themeColor}aa`); // 填滿色 (加深透明度)
-        mainBubbleBorderColors.push(themeColor);   // 邊框色
+        
+        if (selectedSectorFilter && secName !== selectedSectorFilter) {
+            mainBubbleColors.push("rgba(82, 99, 122, 0.04)");       // 極淡灰色填滿
+            mainBubbleBorderColors.push("rgba(255, 255, 255, 0.02)"); // 極淡邊框
+        } else {
+            mainBubbleColors.push(`${themeColor}aa`); // 填滿色 (加深透明度)
+            mainBubbleBorderColors.push(themeColor);   // 邊框色
+        }
     });
 
     // 3. 尋找或建立主泡泡 dataset 以便進行數值漸變線性移動
