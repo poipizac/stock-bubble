@@ -1297,3 +1297,139 @@ tr:nth-child(3) .rank-num { color: #b45309; font-size: 0.9rem; }
         width: 100%;
     }
 }
+
+/* ==========================================================================
+   搜尋欄樣式
+   ========================================================================== */
+.header-search {
+    position: relative;
+    width: 250px;
+    z-index: 110;
+}
+
+.search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 0 14px;
+    height: 38px;
+    transition: var(--transition);
+}
+
+.search-input-wrapper:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.search-input-wrapper:focus-within {
+    background: rgba(13, 18, 28, 0.95);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.search-icon {
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+    margin-right: 8px;
+}
+
+#stock-search-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-family: var(--font-primary);
+    font-size: 0.85rem;
+    width: 100%;
+}
+
+#stock-search-input::placeholder {
+    color: var(--text-tertiary);
+}
+
+.clear-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    transition: var(--transition);
+}
+
+.clear-btn:hover {
+    color: var(--text-primary);
+}
+
+/* 下拉選單 */
+.search-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: rgba(13, 18, 28, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.search-dropdown-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: var(--transition);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.search-dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.search-dropdown-item:hover, .search-dropdown-item.active {
+    background: rgba(59, 130, 246, 0.15);
+    color: white;
+}
+
+.search-item-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.search-item-code {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.search-item-name {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.search-item-sector {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    color: var(--text-secondary);
+}
+
+.search-no-results {
+    padding: 14px;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+}

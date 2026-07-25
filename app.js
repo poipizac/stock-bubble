@@ -212,6 +212,146 @@ function initUI() {
         }
     });
 
+    // 綁定各股搜尋
+    const searchInput = document.getElementById("stock-search-input");
+    const clearSearchBtn = document.getElementById("clear-search-btn");
+    const dropdown = document.getElementById("search-results-dropdown");
+
+    if (searchInput && dropdown) {
+        let activeItemIndex = -1;
+
+        searchInput.addEventListener("input", (e) => {
+            const query = e.target.value.trim().toLowerCase();
+            if (!query) {
+                hideDropdown();
+                return;
+            }
+
+            if (clearSearchBtn) clearSearchBtn.style.display = "block";
+
+            // 搜尋代號或股名
+            const matches = [];
+            for (const [ticker, stock] of Object.entries(stocksData)) {
+                const code = ticker.split(".")[0];
+                const name = stock.name || "";
+                if (code.includes(query) || name.toLowerCase().includes(query)) {
+                    matches.push({ ticker, code, name });
+                }
+            }
+
+            // 限制最多顯示 10 筆，避免下拉選單過長
+            const limit = 10;
+            const sliced = matches.slice(0, limit);
+
+            if (sliced.length === 0) {
+                dropdown.innerHTML = `<div class="search-no-results">查無符合個股</div>`;
+                dropdown.style.display = "block";
+                activeItemIndex = -1;
+                return;
+            }
+
+            let dropdownHTML = "";
+            sliced.forEach((item, idx) => {
+                // 找出該個股對應的板塊名稱
+                let matchedSector = "其他";
+                if (sectorsData && sectorsData.sector_mapping) {
+                    for (const [secName, codesList] of Object.entries(sectorsData.sector_mapping)) {
+                        if (codesList.includes(item.ticker)) {
+                            matchedSector = secName;
+                            break;
+                        }
+                    }
+                }
+
+                dropdownHTML += `
+                    <div class="search-dropdown-item" data-ticker="${item.ticker}" data-index="${idx}">
+                        <div class="search-item-info">
+                            <span class="search-item-code">${item.code}</span>
+                            <span class="search-item-name">${item.name}</span>
+                        </div>
+                        <span class="search-item-sector">${matchedSector}</span>
+                    </div>
+                `;
+            });
+
+            dropdown.innerHTML = dropdownHTML;
+            dropdown.style.display = "block";
+            activeItemIndex = -1;
+
+            // 點擊選單項目
+            dropdown.querySelectorAll(".search-dropdown-item").forEach(item => {
+                item.addEventListener("click", () => {
+                    const ticker = item.getAttribute("data-ticker");
+                    showStockDetails(ticker);
+                    hideDropdown();
+                });
+            });
+        });
+
+        // 鍵盤導航 (上下鍵與 Enter 鍵)
+        searchInput.addEventListener("keydown", (e) => {
+            const items = dropdown.querySelectorAll(".search-dropdown-item");
+            if (dropdown.style.display !== "block" || items.length === 0) return;
+
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                activeItemIndex = (activeItemIndex + 1) % items.length;
+                updateActiveItem(items);
+            } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                activeItemIndex = (activeItemIndex - 1 + items.length) % items.length;
+                updateActiveItem(items);
+            } else if (e.key === "Enter") {
+                e.preventDefault();
+                if (activeItemIndex >= 0 && activeItemIndex < items.length) {
+                    const ticker = items[activeItemIndex].getAttribute("data-ticker");
+                    showStockDetails(ticker);
+                    hideDropdown();
+                } else if (items.length > 0) {
+                    // 若無選定，直接選取第一個
+                    const ticker = items[0].getAttribute("data-ticker");
+                    showStockDetails(ticker);
+                    hideDropdown();
+                }
+            } else if (e.key === "Escape") {
+                hideDropdown();
+            }
+        });
+
+        function updateActiveItem(items) {
+            items.forEach((item, idx) => {
+                if (idx === activeItemIndex) {
+                    item.classList.add("active");
+                    item.scrollIntoView({ block: "nearest" });
+                } else {
+                    item.classList.remove("active");
+                }
+            });
+        }
+
+        // 清除按鈕
+        if (clearSearchBtn) {
+            clearSearchBtn.addEventListener("click", () => {
+                searchInput.value = "";
+                hideDropdown();
+            });
+        }
+
+        // 點擊外部關閉選單
+        document.addEventListener("click", (e) => {
+            if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                hideDropdown();
+            }
+        });
+
+        function hideDropdown() {
+            dropdown.style.display = "none";
+            dropdown.innerHTML = "";
+            activeItemIndex = -1;
+            if (clearSearchBtn) clearSearchBtn.style.display = "none";
+        }
+    }
+
     // 填充白話名詞解釋
     renderGlossary();
 }

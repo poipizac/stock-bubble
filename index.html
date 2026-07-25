@@ -32,6 +32,17 @@
             <button class="nav-btn" data-target="ranking-view"><i class="fa-solid fa-list-ol"></i>籌碼排行榜</button>
             <button class="nav-btn" data-target="glossary-view"><i class="fa-solid fa-book"></i>籌碼名詞百科</button>
         </nav>
+
+        <!-- 各股搜尋 -->
+        <div class="header-search">
+            <div class="search-input-wrapper">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="stock-search-input" placeholder="搜尋股號或股名..." autocomplete="off">
+                <button id="clear-search-btn" class="clear-btn" style="display: none;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="search-results-dropdown" class="search-dropdown" style="display: none;"></div>
+        </div>
+
         <div class="header-status">
             <span class="update-time"><i class="fa-regular fa-clock"></i> 資料更新：<span id="latest-date-label">-----</span></span>
             <button id="theme-toggle" class="theme-btn"><i class="fa-solid fa-moon"></i></button>
