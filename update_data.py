@@ -397,6 +397,24 @@ def main():
         "buy_on_dip": [s for s in latest_stocks_list if s["is_buy_on_dip"]][:5]
     }
     
+    # 產生各股搜尋索引檔案，只包含股號、名稱與板塊，以提升網頁載入與搜尋速度 (大小約 100 KB)
+    search_index_json = {}
+    for code, st_latest in latest_data["stock_data"].items():
+        ticker = get_tw_ticker(code)
+        st_name = STOCK_NAMES.get(code, f"個股 {code}")
+        
+        # 尋找該股所屬的板塊
+        matched_sec = "其他"
+        for sec_name, tickers in SECTORS.items():
+            if ticker in tickers:
+                matched_sec = sec_name
+                break
+                
+        search_index_json[ticker] = {
+            "name": st_name,
+            "sector": matched_sec
+        }
+
     with open("data/market.json", "w", encoding="utf-8") as f:
         json.dump(market_json, f, ensure_ascii=False, indent=2)
         
@@ -406,10 +424,13 @@ def main():
     with open("data/stocks.json", "w", encoding="utf-8") as f:
         json.dump(stocks_detail_json, f, ensure_ascii=False, indent=2)
         
+    with open("data/search_index.json", "w", encoding="utf-8") as f:
+        json.dump(search_index_json, f, ensure_ascii=False, indent=2)
+        
     with open("data/rankings.json", "w", encoding="utf-8") as f:
         json.dump(rankings_json, f, ensure_ascii=False, indent=2)
 
-    print(f"最新 {latest_date} 全量板塊歷史豐富化籌碼數據輸出成功！")
+    print(f"最新 {latest_date} 全量板塊歷史豐富化與搜尋索引數據輸出成功！")
 
 if __name__ == "__main__":
     main()

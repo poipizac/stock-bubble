@@ -5,8 +5,12 @@
 // 全域狀態
 let marketData = null;
 let sectorsData = null;
-let stocksData = null;
+let searchIndexData = null; // 搜尋索引 (輕量，約 100 KB)
+let stocksData = null;       // 完整個股歷史資料 (重量，約 30 MB 背景異步加載)
 let rankingsData = null;
+
+let pendingModalTicker = null;
+let pendingSectorName = null;
 
 let dates = [];
 let currentDateIndex = 0;
@@ -62,21 +66,49 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function loadAllData() {
     // 獲取數據，並加上防快取時間戳記
     const t = Date.now();
-    const [marketRes, sectorsRes, stocksRes, rankingsRes] = await Promise.all([
+    
+    // 1. 同步載入輕量化資料，總體積小於 2 MB，加載時間在毫秒級 (極速頁面初始化)
+    const [marketRes, sectorsRes, searchIndexRes, rankingsRes] = await Promise.all([
         fetch(`data/market.json?t=${t}`).then(r => r.json()),
         fetch(`data/sectors.json?t=${t}`).then(r => r.json()),
-        fetch(`data/stocks.json?t=${t}`).then(r => r.json()),
+        fetch(`data/search_index.json?t=${t}`).then(r => r.json()),
         fetch(`data/rankings.json?t=${t}`).then(r => r.json())
     ]);
 
     marketData = marketRes;
     sectorsData = sectorsRes;
-    stocksData = stocksRes;
+    searchIndexData = searchIndexRes;
     rankingsData = rankingsRes;
 
     // 前端時間軸改為顯示最新日期的前 10 個工作日
     dates = marketData.all_dates.slice(-10);
     currentDateIndex = dates.length - 1; // 預設指向最新一天
+
+    // 2. 異步在背景加載重量級個股資料庫 (30 MB)，不阻塞 UI 的初始化與搜尋框運作
+    fetch(`data/stocks.json?t=${t}`)
+        .then(r => {
+            if (!r.ok) throw new Error("Stocks database load failed");
+            return r.json();
+        })
+        .then(data => {
+            stocksData = data;
+            console.log("完整個股籌碼資料庫 (30 MB) 背景加載完成！");
+            
+            // 如果此時有 pending 的彈窗請求，立即觸發打開
+            if (pendingModalTicker) {
+                const ticker = pendingModalTicker;
+                pendingModalTicker = null;
+                showStockDetails(ticker);
+            }
+            if (pendingSectorName) {
+                const secName = pendingSectorName;
+                pendingSectorName = null;
+                showSectorDetails(secName);
+            }
+        })
+        .catch(err => {
+            console.error("個股資料庫背景加載失敗：", err);
+        });
 }
 
 // ==========================================================================
@@ -231,11 +263,13 @@ function initUI() {
 
             // 搜尋代號或股名
             const matches = [];
-            for (const [ticker, stock] of Object.entries(stocksData)) {
-                const code = ticker.split(".")[0];
-                const name = stock.name || "";
-                if (code.includes(query) || name.toLowerCase().includes(query)) {
-                    matches.push({ ticker, code, name });
+            if (searchIndexData) {
+                for (const [ticker, stock] of Object.entries(searchIndexData)) {
+                    const code = ticker.split(".")[0];
+                    const name = stock.name || "";
+                    if (code.includes(query) || name.toLowerCase().includes(query)) {
+                        matches.push({ ticker, code, name, sector: stock.sector });
+                    }
                 }
             }
 
@@ -252,16 +286,7 @@ function initUI() {
 
             let dropdownHTML = "";
             sliced.forEach((item, idx) => {
-                // 找出該個股對應的板塊名稱
-                let matchedSector = "其他";
-                if (sectorsData && sectorsData.sector_mapping) {
-                    for (const [secName, codesList] of Object.entries(sectorsData.sector_mapping)) {
-                        if (codesList.includes(item.ticker)) {
-                            matchedSector = secName;
-                            break;
-                        }
-                    }
-                }
+                const matchedSector = item.sector || "其他";
 
                 dropdownHTML += `
                     <div class="search-dropdown-item" data-ticker="${item.ticker}" data-index="${idx}">
@@ -819,6 +844,20 @@ function showSectorDetails(sectorName) {
     const modal = document.getElementById("details-modal");
     const container = document.getElementById("modal-body-content");
     
+    // 如果完整個股資料庫 (30 MB) 還在背景加載中，顯示玻璃擬態加載畫面，並標記為 pending
+    if (!stocksData) {
+        pendingSectorName = sectorName;
+        modal.style.display = "flex";
+        container.innerHTML = `
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:100px 0; color:var(--text-secondary);">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size:2.5rem; margin-bottom:20px; color:var(--accent-color);"></i>
+                <div style="font-size:1.1rem; font-weight:600;">正在加載台股完整資料庫 (30 MB)...</div>
+                <div style="font-size:0.85rem; color:var(--text-tertiary); margin-top:8px;">首次進入網頁下載較多歷史價量，請稍候。</div>
+            </div>
+        `;
+        return;
+    }
+    
     const tickers = sectorsData.sector_mapping[sectorName];
     if (!tickers) return;
 
@@ -904,6 +943,20 @@ function showSectorDetails(sectorName) {
 function showStockDetails(ticker, isDateSwitch = false) {
     const modal = document.getElementById("details-modal");
     const container = document.getElementById("modal-body-content");
+    
+    // 如果完整個股資料庫 (30 MB) 還在背景加載中，顯示玻璃擬態加載畫面，並標記為 pending
+    if (!stocksData) {
+        pendingModalTicker = ticker;
+        modal.style.display = "flex";
+        container.innerHTML = `
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:100px 0; color:var(--text-secondary);">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size:2.5rem; margin-bottom:20px; color:var(--accent-color);"></i>
+                <div style="font-size:1.1rem; font-weight:600;">正在加載台股完整資料庫 (30 MB)...</div>
+                <div style="font-size:0.85rem; color:var(--text-tertiary); margin-top:8px;">首次進入網頁下載較多歷史價量，請稍候。</div>
+            </div>
+        `;
+        return;
+    }
     
     const stock = stocksData[ticker];
     if (!stock) return;
