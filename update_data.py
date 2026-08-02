@@ -109,11 +109,28 @@ def main():
     
     stock_dfs = {}
     for ticker in hot_tickers:
-        if ticker not in downloaded_prices.columns.levels[0]:
-            continue
-        df = downloaded_prices[ticker].dropna().copy()
+        # 防禦 downloaded_prices 是否具有 MultiIndex 結構
+        if isinstance(downloaded_prices.columns, pd.MultiIndex):
+            try:
+                # 檢查 ticker 是否存在於 columns 的第一層
+                if ticker not in downloaded_prices.columns.levels[0]:
+                    continue
+                df = downloaded_prices[ticker].dropna().copy()
+            except (AttributeError, KeyError, IndexError):
+                continue
+        else:
+            if ticker in downloaded_prices.columns:
+                df = downloaded_prices[ticker].dropna().copy()
+            else:
+                continue
+
         if df.empty:
             continue
+
+        # 確保必要欄位存在
+        if not {"Volume", "Close", "Open", "High", "Low"}.issubset(df.columns):
+            continue
+
         df["Volume_T"] = df["Volume"] / 1000.0
         df.index = df.index.strftime("%Y-%m-%d")
         df["MA20_Price"] = df["Close"].rolling(window=20).mean()
@@ -350,14 +367,48 @@ def main():
             }
             
     # 5. 大盤與情緒計
-    if isinstance(twii_df.columns, pd.MultiIndex):
-        last_twii_close = float(twii_df.iloc[-1][("Close", "^TWII")])
-        prev_twii_close = float(twii_df.iloc[-2][("Close", "^TWII")])
+    if len(twii_df) < 2:
+        print("警告: 大盤資料不足，無法計算情緒計")
+        if not twii_df.empty:
+            if isinstance(twii_df.columns, pd.MultiIndex):
+                try:
+                    last_twii_close = float(twii_df.iloc[-1][("Close", "^TWII")])
+                except KeyError:
+                    try:
+                        last_twii_close = float(twii_df.iloc[-1][("^TWII", "Close")])
+                    except KeyError:
+                        last_twii_close = 18000.0
+            else:
+                last_twii_close = float(twii_df.iloc[-1]["Close"]) if "Close" in twii_df.columns else 18000.0
+        else:
+            last_twii_close = 18000.0
+        prev_twii_close = last_twii_close
+        chg = 0.0
     else:
-        last_twii_close = float(twii_df.iloc[-1]["Close"])
-        prev_twii_close = float(twii_df.iloc[-2]["Close"])
-        
-    chg = ((last_twii_close - prev_twii_close) / prev_twii_close) * 100.0
+        if isinstance(twii_df.columns, pd.MultiIndex):
+            try:
+                last_twii_close = float(twii_df.iloc[-1][("Close", "^TWII")])
+                prev_twii_close = float(twii_df.iloc[-2][("Close", "^TWII")])
+            except KeyError:
+                try:
+                    last_twii_close = float(twii_df.iloc[-1][("^TWII", "Close")])
+                    prev_twii_close = float(twii_df.iloc[-2][("^TWII", "Close")])
+                except KeyError:
+                    try:
+                        last_twii_close = float(twii_df.iloc[-1]["Close"])
+                        prev_twii_close = float(twii_df.iloc[-2]["Close"])
+                    except (KeyError, ValueError):
+                        last_twii_close = 18000.0
+                        prev_twii_close = 18000.0
+        else:
+            try:
+                last_twii_close = float(twii_df.iloc[-1]["Close"])
+                prev_twii_close = float(twii_df.iloc[-2]["Close"])
+            except KeyError:
+                last_twii_close = 18000.0
+                prev_twii_close = 18000.0
+                
+        chg = ((last_twii_close - prev_twii_close) / prev_twii_close) * 100.0 if prev_twii_close > 0 else 0.0
     
     emotion_score = int(50 - 30 * chg)
     emotion_score = int(np.clip(emotion_score, 5, 95))
