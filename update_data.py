@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import datetime
 import numpy as np
@@ -54,15 +55,15 @@ def download_url_json(url):
 
 def main():
     print("正在下載歷史 API 資料作為基底...")
-    latest_data = download_url_json("https://sectorrotation.netlify.app/data/latest.json")
-    sector_timeline = download_url_json("https://sectorrotation.netlify.app/data/sector_timeline.json")
-    stock_timeline = download_url_json("https://stocktimeline.netlify.app/data/stock_timeline.json") # 原網址或 fallback
+    latest_data = download_url_json("https://tide-tw.app/data/latest.json")
+    sector_timeline = download_url_json("https://tide-tw.app/data/sector_timeline.json")
+    stock_timeline = download_url_json("https://tide-tw.app/data/stock_timeline.json") # 原網址或 fallback
     if not stock_timeline:
-        stock_timeline = download_url_json("https://sectorrotation.netlify.app/data/stock_timeline.json")
+        stock_timeline = download_url_json("https://tide-tw.app/data/stock_timeline.json")
         
     if not latest_data or not sector_timeline or not stock_timeline:
         print("無法下載基底資料，執行中斷")
-        return
+        sys.exit(1)
         
     print("下載大盤 ^TWII 交易日曆...")
     today = datetime.date.today()
@@ -70,7 +71,7 @@ def main():
     twii_df = yf.download("^TWII", start="2026-06-01", end=end_date_str)
     if twii_df.empty:
         print("無法獲取大盤日曆")
-        return
+        sys.exit(1)
         
     all_trading_dates = twii_df.index.strftime("%Y-%m-%d").tolist()
     today_str = today.strftime("%Y-%m-%d")
