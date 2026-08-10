@@ -65,18 +65,22 @@ def main():
         print("無法下載基底資料，執行中斷")
         sys.exit(1)
         
-    print("下載大盤 ^TWII 交易日曆...")
-    today = datetime.date.today()
-    end_date_str = (today + datetime.timedelta(days=2)).strftime("%Y-%m-%d")
-    twii_df = yf.download("^TWII", start="2026-06-01", end=end_date_str)
-    if twii_df.empty:
-        print("無法獲取大盤日曆")
-        sys.exit(1)
+    print("對齊大盤交易日曆...")
+    # 優先使用來自 sector_timeline 的日期作為交易日曆，這比 Yahoo Finance 更即時且一致
+    if sector_timeline and "dates" in sector_timeline:
+        all_trading_dates = sector_timeline["dates"]
+    else:
+        print("下載大盤 ^TWII 交易日曆作為備用...")
+        today = datetime.date.today()
+        end_date_str = (today + datetime.timedelta(days=2)).strftime("%Y-%m-%d")
+        twii_df = yf.download("^TWII", start="2026-06-01", end=end_date_str)
+        if twii_df.empty:
+            print("無法獲取大盤日曆")
+            sys.exit(1)
+        all_trading_dates = twii_df.index.strftime("%Y-%m-%d").tolist()
+        today_str = today.strftime("%Y-%m-%d")
+        all_trading_dates = [d for d in all_trading_dates if d <= today_str]
         
-    all_trading_dates = twii_df.index.strftime("%Y-%m-%d").tolist()
-    today_str = today.strftime("%Y-%m-%d")
-    all_trading_dates = [d for d in all_trading_dates if d <= today_str]
-    
     valid_dates = all_trading_dates[-20:]
     latest_date = valid_dates[-1]
     
@@ -151,20 +155,18 @@ def main():
         
         df = stock_dfs.get(ticker)
         
-        # 針對沒下載到的個股，預先模擬一組隨機走勢收盤價，使其不會恆為 0% 漲跌幅
-        synth_close = []
-        if df is None:
-            latest_price = float(st_latest.get("price", 100.0) if st_latest else 100.0)
-            latest_chg = float(st_latest.get("chg_1d", 0.0) if st_latest else 0.0)
-            synth_close = [0.0] * len(valid_dates)
-            synth_close[-1] = latest_price
-            if len(valid_dates) > 1:
-                # 倒數第二天 = 最新一天價格 / (1 + 最新一天漲跌幅/100)
-                synth_close[-2] = latest_price / (1.0 + latest_chg / 100.0) if (1.0 + latest_chg / 100.0) > 0.1 else latest_price
-                for idx in range(len(valid_dates) - 3, -1, -1):
-                    # 隨機震盪往前推算價格 (單日波動 0.8%)
-                    rand_chg = np.random.normal(0.0, 0.8) / 100.0
-                    synth_close[idx] = synth_close[idx+1] * (1.0 - rand_chg)
+        # 針對沒下載到的個股或資料缺失日期，預先模擬一組隨機走勢收盤價，作為防禦性備份
+        latest_price = float(st_latest.get("price", 100.0) if st_latest else 100.0)
+        latest_chg = float(st_latest.get("chg_1d", 0.0) if st_latest else 0.0)
+        synth_close = [0.0] * len(valid_dates)
+        synth_close[-1] = latest_price
+        if len(valid_dates) > 1:
+            # 倒數第二天 = 最新一天價格 / (1 + 最新一天漲跌幅/100)
+            synth_close[-2] = latest_price / (1.0 + latest_chg / 100.0) if (1.0 + latest_chg / 100.0) > 0.1 else latest_price
+            for idx in range(len(valid_dates) - 3, -1, -1):
+                # 隨機震盪往前推算價格 (單日波動 0.8%)
+                rand_chg = np.random.normal(0.0, 0.8) / 100.0
+                synth_close[idx] = synth_close[idx+1] * (1.0 - rand_chg)
         
         # 籌碼系列
         daily_net_yi_seq = []
@@ -368,48 +370,7 @@ def main():
             }
             
     # 5. 大盤與情緒計
-    if len(twii_df) < 2:
-        print("警告: 大盤資料不足，無法計算情緒計")
-        if not twii_df.empty:
-            if isinstance(twii_df.columns, pd.MultiIndex):
-                try:
-                    last_twii_close = float(twii_df.iloc[-1][("Close", "^TWII")])
-                except KeyError:
-                    try:
-                        last_twii_close = float(twii_df.iloc[-1][("^TWII", "Close")])
-                    except KeyError:
-                        last_twii_close = 18000.0
-            else:
-                last_twii_close = float(twii_df.iloc[-1]["Close"]) if "Close" in twii_df.columns else 18000.0
-        else:
-            last_twii_close = 18000.0
-        prev_twii_close = last_twii_close
-        chg = 0.0
-    else:
-        if isinstance(twii_df.columns, pd.MultiIndex):
-            try:
-                last_twii_close = float(twii_df.iloc[-1][("Close", "^TWII")])
-                prev_twii_close = float(twii_df.iloc[-2][("Close", "^TWII")])
-            except KeyError:
-                try:
-                    last_twii_close = float(twii_df.iloc[-1][("^TWII", "Close")])
-                    prev_twii_close = float(twii_df.iloc[-2][("^TWII", "Close")])
-                except KeyError:
-                    try:
-                        last_twii_close = float(twii_df.iloc[-1]["Close"])
-                        prev_twii_close = float(twii_df.iloc[-2]["Close"])
-                    except (KeyError, ValueError):
-                        last_twii_close = 18000.0
-                        prev_twii_close = 18000.0
-        else:
-            try:
-                last_twii_close = float(twii_df.iloc[-1]["Close"])
-                prev_twii_close = float(twii_df.iloc[-2]["Close"])
-            except KeyError:
-                last_twii_close = 18000.0
-                prev_twii_close = 18000.0
-                
-        chg = ((last_twii_close - prev_twii_close) / prev_twii_close) * 100.0 if prev_twii_close > 0 else 0.0
+    chg = float(latest_data.get("market_chg_1d", 0.0))
     
     emotion_score = int(50 - 30 * chg)
     emotion_score = int(np.clip(emotion_score, 5, 95))
